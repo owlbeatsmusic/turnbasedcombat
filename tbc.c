@@ -51,20 +51,23 @@ const Move powernap = {1, 0, 1.0, 0,
 	      0, 0, 0,  0,  0,  0,  0};
 
 typedef struct {
+	int number;
 	int SPD, HP, ATK, NRG, DEF, PRC, SNS;
 	Move* moves;
 } Player;
 
 
-Player create_player() {
+Player create_player(int number) {
 	Player player;
-
+	
+	player.number = number;
+	
 	player.SPD = 10;
 	player.HP  = 999;
 	player.ATK = 10;
 	player.NRG = 100;
-	player.DEF = 10;
-	player.PRC = 100;
+	player.DEF = 5;
+	player.PRC = 80;
 	player.SNS = 20;
 	
 	player.moves = (Move*) malloc(5 * sizeof(Move));
@@ -86,13 +89,17 @@ int set_player_moves(Player* player, Move m1, Move m2, Move m3, Move m4, Move m5
 
 // self and opnt can be reversed in the context of this function
 int add_to_stat(Player* self, Player* opnt, Stat stat, Move move, int value) {
+	if (value == 0) return 0;
 	switch(stat) {
 		case SPD:
 			self->SPD = value; 
 			break;
 		case HP :
-			if (value < 0 ) self->HP  += value * ((100.0-self->DEF)/100.0) * ((100.0+opnt->ATK)/110.0); // movedamage * defensemult. * attackmult.
-			if (value >= 0) self->HP  += value;
+			float multiplier = 1;
+			if (value < 0 ) multiplier *= ((100.0-self->DEF)/100.0) * ((100.0+opnt->ATK)/110.0); // movedamage * defensemult. * attackmult.
+			if (move.speedmult == 1) multiplier *= (100.0+opnt->SPD)/120.0;
+			self->HP  += (int)(value * multiplier);
+			printf("[  MOVE  ]: player %d took %d pts of damage.\n", self->number, (int)(value * multiplier));
 			break;
 		case ATK: 
 			self->ATK += value; 
@@ -120,10 +127,9 @@ int do_move(Player* self, Player* opnt, Move move) {
 		float prob_of_hit = move.hit_prob * (self->PRC/100.0) - (BASE_DODGE_PROB) * ((100.0+opnt->SPD)/120.0); // moveprob. * precisionprob - dodgeprob.
 		float random = (float)rand() / RAND_MAX;
 		if (prob_of_hit < random) { 
-			printf("[  MOVE  ]: Missed/Dodged %f < %f\n", prob_of_hit, random);
+			printf("[  MOVE  ]: Missed/Dodged\n");
 			return 0;
 		}
-		else printf("[  MOVE  ]: Hit %f < %f\n", prob_of_hit, random);
 	}
 	
 	// do move
@@ -148,14 +154,34 @@ int do_move(Player* self, Player* opnt, Move move) {
 	return 0;
 }
 
+int print_stats(Player player) {
+	printf("[  STAT  ]: player %d\n", player.number);
+	printf("[  STAT  ]:  SPD: %d\n", player.SPD);
+	printf("[  STAT  ]:  HP : %d\n", player.HP );
+	printf("[  STAT  ]:  ATK: %d\n", player.ATK);
+	printf("[  STAT  ]:  NRG: %d\n", player.NRG);
+	printf("[  STAT  ]:  DEF: %d\n", player.DEF);
+	printf("[  STAT  ]:  PRC: %d\n", player.PRC);
+	printf("[  STAT  ]:  SNS: %d\n", player.SNS);
+	
+	return 0;
+}
+
 int main(void) {
 	srand(time(NULL));
 	
-	Player player1 = create_player();
-	Player player2 = create_player();
+	Player player1 = create_player(1);
+	Player player2 = create_player(2);
 
+	print_stats(player1); print_stats(player2);	
+	
 	set_player_moves(&player1, punch, calm, runkick, rock_throw, fight_mindset);
-	do_move(&player1, &player2, rock_throw);	
+	do_move(&player1, &player2, runkick);	
+	
+	print_stats(player1); print_stats(player2);	
+
+	free(player1.moves);
+	free(player2.moves);	
 
 	return 0;
 }
